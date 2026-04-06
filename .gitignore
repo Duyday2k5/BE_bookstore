@@ -1,8 +1,8 @@
 # Dependencies
 node_modules/
 
-# Build output (generated from src/dist)
-dist/
+# Build output tại root (generated from src/dist by build.js)
+/dist/
 
 # Environment variables - KHÔNG đẩy lên git
 .env
