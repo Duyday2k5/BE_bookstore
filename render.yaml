@@ -1,0 +1,41 @@
+# =============================================
+# Render.com Deployment Configuration
+# Docs: https://render.com/docs/render-yaml
+# =============================================
+
+services:
+  - type: web
+    name: bookstore-api
+    runtime: node
+    region: singapore   # Chọn region gần Việt Nam nhất
+    plan: free          # Free tier (có thể đổi thành starter, standard...)
+
+    # Thư mục gốc của project (nếu push cả folder share lên git)
+    # rootDir: share    # Bỏ comment dòng này nếu root git là api-be-bookstr
+
+    # Build command: cài dependencies + copy src/dist -> dist
+    buildCommand: npm install --omit=dev && node build.js
+
+    # Start command
+    startCommand: node ./dist/main.js
+
+    # Health check endpoint (Render dùng để biết app đã sẵn sàng)
+    healthCheckPath: /
+
+    # Auto-deploy khi push lên branch này
+    autoDeploy: true
+
+    # Biến môi trường - Điền trực tiếp trên Render Dashboard
+    # KHÔNG để secrets ở đây, chỉ để các giá trị không nhạy cảm
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8080
+      # Các biến sau điền trên Render Dashboard (Environment tab):
+      # MONGO_DB_URL
+      # JWT_ACCESS_SECRET
+      # JWT_ACCESS_EXPIRE_IN
+      # JWT_REFRESH_SECRET
+      # JWT_REFRESH_EXPIRE_IN
+      # MIGRATION_USER_PASSWORD
