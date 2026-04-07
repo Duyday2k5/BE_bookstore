@@ -8,8 +8,18 @@ services:
   plan: free
   envVars:
   - key: MONGO_DB_URL
-    sync: false
+    value: mongodb+srv://nhatduy25:Nnd27092005.@duyday25.pruwivz.mongodb.net/bookstore?retryWrites=true&w=majority&appName=Duyday25
+  - key: NODE_ENV
+    value: production
+  - key: JWT_ACCESS_SECRET
+    value: JUSTARANDOMSTRINGACCESS
+  - key: JWT_ACCESS_EXPIRE_IN
+    value: 10h
+  - key: JWT_REFRESH_SECRET
+    value: JUSTARANDOMSTRINGREFRESH
+  - key: JWT_REFRESH_EXPIRE_IN
+    value: 1d
   region: oregon
-  buildCommand: npm install; npm run build
+  buildCommand: npm install --legacy-peer-deps && npm run build
   startCommand: npm start
   autoDeployTrigger: commit
