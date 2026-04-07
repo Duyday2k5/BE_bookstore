@@ -1,6 +1,7 @@
+require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
+const { spawn } = require('child_process');
 
 const srcDir = './src/dist';
 const distDir = './dist';
@@ -33,28 +34,69 @@ if (fs.existsSync(distDir)) {
 copyDir(srcDir, distDir);
 console.log('✓ Build complete');
 
-// Watch mode
-const chokidar = require('chokidar');
-const watcher = chokidar.watch(srcDir, { ignored: /node_modules/ });
+// --- Start server process ---
+let serverProcess = null;
 
-let isBuilding = false;
+function startServer() {
+    if (serverProcess) {
+        serverProcess.kill();
+        serverProcess = null;
+    }
 
-function rebuild() {
-    if (isBuilding) return;
-    isBuilding = true;
-    console.log('Rebuilding...');
-    copyDir(srcDir, distDir);
-    console.log('✓ Rebuild complete');
-    isBuilding = false;
+    console.log('Starting server...');
+    serverProcess = spawn('node', ['./dist/main.js'], {
+        stdio: 'inherit',
+        shell: false,
+    });
+
+    serverProcess.on('exit', (code) => {
+        if (code !== null && code !== 0) {
+            console.log(`Server exited with code ${code}. Waiting for changes...`);
+        }
+    });
 }
 
-watcher.on('change', rebuild);
-watcher.on('add', rebuild);
+startServer();
 
-// Start server
-console.log('Starting server...');
-exec('node ./dist/main.js', (error, stdout, stderr) => {
-    if (error) console.error(`error: ${error.message}`);
-    if (stderr) console.error(`stderr: ${stderr}`);
-    if (stdout) console.log(stdout);
+// --- Watch src/dist for changes, ignore dist/ to avoid EBUSY loop ---
+const chokidar = require('chokidar');
+
+// Chỉ watch SRC directory, KHÔNG watch dist/ để tránh vòng lặp EBUSY
+const watcher = chokidar.watch(srcDir, {
+    ignored: /node_modules/,
+    persistent: true,
+    ignoreInitial: true,   // bỏ qua scan lần đầu
+    awaitWriteFinish: {    // đợi file ghi xong mới trigger
+        stabilityThreshold: 300,
+        pollInterval: 100,
+    },
+});
+
+let rebuildTimeout = null;
+
+function scheduleRebuild() {
+    // Debounce: tránh rebuild nhiều lần liên tiếp
+    if (rebuildTimeout) clearTimeout(rebuildTimeout);
+    rebuildTimeout = setTimeout(() => {
+        console.log('\nChange detected. Rebuilding...');
+        try {
+            copyDir(srcDir, distDir);
+            console.log('✓ Rebuild complete. Restarting server...');
+            startServer();
+        } catch (err) {
+            console.error('Rebuild failed:', err.message);
+        }
+    }, 500);
+}
+
+watcher.on('change', scheduleRebuild);
+watcher.on('add', scheduleRebuild);
+watcher.on('unlink', scheduleRebuild);
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+    console.log('\nStopping...');
+    if (serverProcess) serverProcess.kill();
+    watcher.close();
+    process.exit(0);
 });
